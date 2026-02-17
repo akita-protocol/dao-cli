@@ -157,9 +157,10 @@ export async function startTUI(network: AkitaNetwork): Promise<void> {
         fixedRight = result.fixedRight;
       }
 
-      // JSON mode: re-render as JSON (flatten both panels)
+      // JSON mode: serialize structured data (or fall back to lines)
       if (state.jsonMode) {
-        const jsonStr = JSON.stringify(lines, jsonReplacer, 2);
+        const jsonData = (result as LoadResult).data ?? lines;
+        const jsonStr = JSON.stringify(jsonData, jsonReplacer, 2);
         lines = jsonStr.split("\n");
         fixedRight = undefined;
       }

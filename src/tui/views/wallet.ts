@@ -192,16 +192,22 @@ export const walletView: View = {
 
     const selectedAccount = accounts[_accountIdx];
 
+    const selectedAppId = selectedAccount.escrowName === ""
+      ? wallet.appId
+      : cache.escrows.find(([n]) => n === selectedAccount.escrowName)?.[1].id ?? 0n;
+
+    // Build structured data for JSON mode
+    const data = buildWalletData(cache, network, accounts, selectedAccount, selectedAppId, wallet.appId);
+
     if (width < 80) {
-      return renderSingleColumn(cache, network, accounts, selectedAccount, wallet.appId);
+      return {
+        lines: renderSingleColumn(cache, network, accounts, selectedAccount, wallet.appId),
+        data,
+      };
     }
 
     // Two-panel layout
     const [leftW, rightW] = splitWidth(width, 2);
-
-    const selectedAppId = selectedAccount.escrowName === ""
-      ? wallet.appId
-      : cache.escrows.find(([n]) => n === selectedAccount.escrowName)?.[1].id ?? 0n;
 
     const leftLines = renderLeftPanel(cache, network, accounts, leftW, wallet.appId);
     const rightLines = renderRightPanel(cache, network, selectedAccount, selectedAppId, rightW);
@@ -209,9 +215,128 @@ export const walletView: View = {
     return {
       lines: ["", ...leftLines],
       fixedRight: ["", ...rightLines],
+      data,
     };
   },
 };
+
+// ── Structured data for JSON mode ────────────────────────────────
+
+function buildWalletData(
+  cache: WalletCache,
+  network: AkitaNetwork,
+  accounts: { name: string; address: string; escrowName: string }[],
+  selectedAccount: { name: string; address: string; escrowName: string },
+  selectedAppId: bigint,
+  walletAppId: bigint,
+) {
+  const gs = cache.globalState;
+
+  const info = {
+    version: gs.version ?? null,
+    admin: gs.admin ?? null,
+    domain: typeof gs.domain === "string" && gs.domain ? gs.domain : null,
+    nickname: typeof gs.nickname === "string" && gs.nickname ? gs.nickname : null,
+    dao: gs.akitaDao ?? null,
+    factory: typeof gs.factoryApp === "bigint" && (gs.factoryApp as bigint) > 0n ? gs.factoryApp : null,
+    referrer: typeof gs.referrer === "string" && !isZeroAddress(gs.referrer) ? gs.referrer : null,
+  };
+
+  const mainAddr = accounts[0].address;
+  const accountsData = accounts.map((acct) => {
+    const bal = cache.balances.get(acct.address);
+    return {
+      name: acct.name,
+      appId: acct.escrowName === ""
+        ? walletAppId
+        : cache.escrows.find(([n]) => n === acct.escrowName)?.[1].id ?? null,
+      address: acct.address,
+      balances: bal ?? null,
+    };
+  });
+
+  const escrowsData = cache.escrows.map(([name, esc]) => ({
+    name,
+    appId: esc.id,
+    locked: esc.locked,
+  }));
+
+  // Selected account details
+  const escrowFilter = selectedAccount.escrowName;
+
+  const filteredPlugins = cache.plugins.filter(([key]) => {
+    const parsed = parsePluginKey(key);
+    return escrowFilter === "" ? parsed.escrow === "" : parsed.escrow === escrowFilter;
+  });
+
+  const plugins = filteredPlugins.map(([key, p]) => {
+    const { pluginId, caller } = parsePluginKey(key);
+    return {
+      key,
+      pluginId: pluginId ?? null,
+      pluginName: pluginId ? getAppName(pluginId, network) ?? null : null,
+      caller: caller || null,
+      admin: p.admin,
+      delegationType: delegationTypeLabel(p.delegationType),
+      coverFees: p.coverFees,
+      canReclaim: p.canReclaim,
+      useExecutionKey: p.useExecutionKey,
+      useRounds: p.useRounds,
+      cooldown: p.cooldown,
+      lastCalled: p.lastCalled,
+      start: p.start,
+      lastValid: p.lastValid,
+      methods: p.methods.map((m) => ({
+        name: resolveMethodSelector(m.name),
+        cooldown: m.cooldown,
+        lastCalled: m.lastCalled,
+      })),
+    };
+  });
+
+  const namedPlugins = cache.namedPlugins.map(([name, np]) => ({
+    name,
+    plugin: np.plugin,
+    caller: np.caller,
+    escrow: np.escrow || null,
+  }));
+
+  const filteredAllowances = cache.allowances.filter(([key]) => {
+    if (escrowFilter === "") return true;
+    return key.includes(escrowFilter);
+  });
+
+  const allowances = filteredAllowances.map(([key, a]) => ({
+    key,
+    type: a.type,
+    amount: a.amount ?? null,
+    spent: a.spent ?? null,
+    rate: a.rate ?? null,
+    max: a.max ?? null,
+    interval: a.interval ?? null,
+  }));
+
+  const executions = cache.executions.map(([key, e]) => ({
+    lease: key,
+    firstValid: e.firstValid,
+    lastValid: e.lastValid,
+  }));
+
+  return {
+    info,
+    accounts: accountsData,
+    escrows: escrowsData,
+    selectedAccount: {
+      name: selectedAccount.name,
+      appId: selectedAppId,
+      address: selectedAccount.address,
+      plugins,
+      namedPlugins,
+      allowances,
+      executions,
+    },
+  };
+}
 
 // ── Left panel: Wallet Info + Account List ─────────────────────
 

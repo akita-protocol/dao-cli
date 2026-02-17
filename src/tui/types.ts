@@ -65,6 +65,7 @@ export interface ViewContext {
 export interface LoadResult {
   lines: string[];
   fixedRight?: string[];
+  data?: unknown;
 }
 
 export interface View {

@@ -130,7 +130,7 @@ bun install
 bun run src/index.ts
 ```
 
-Requires [akita-sdk](https://github.com/akita-protocol/akita-sc) built locally at `../../akita-sc/projects/akita-sdk`.
+Uses [`@akta/sdk`](https://www.npmjs.com/package/@akta/sdk) from npm — installed automatically with `bun install`.
 
 ## License
 

@@ -15,10 +15,10 @@ import {
   colorState,
 } from "../../formatting";
 import { renderPanel, renderPanelGrid, splitWidth } from "../panels";
-import type { View, ViewContext } from "../types";
+import type { LoadResult, View, ViewContext } from "../types";
 
 export const daoView: View = {
-  async load(ctx: ViewContext): Promise<string[]> {
+  async load(ctx: ViewContext): Promise<LoadResult> {
     const { dao, network, width } = ctx;
     const state = await dao.getGlobalState();
     const ids = getNetworkAppIds(network);
@@ -53,75 +53,81 @@ export const daoView: View = {
       // Asset info fetch failed — skip supply charts
     }
 
+    // Build structured data for JSON mode
+    const data = buildDaoData(state, network, ids, dao.appId, aktaSupply, bonesSupply);
+
+    let lines: string[];
     if (width < 80) {
-      return renderSingleColumn(state, network, ids, width, aktaSupply, bonesSupply);
-    }
-
-    const gridRows: string[][][] = [];
-
-    // Row 1: DAO info + Assets + Token Supply
-    const hasSupply = aktaSupply || bonesSupply;
-    const colCount = hasSupply ? 3 : 2;
-    const colWidths = splitWidth(width, colCount);
-
-    const infoContent = renderKV([
-      ["Network", network],
-      ["App ID", dao.appId.toString()],
-      ["Version", state.version ?? "-"],
-      ["State", state.state !== undefined ? colorState(daoStateLabel(state.state)) : "-"],
-      ["Wallet", state.wallet ? resolveAppName(state.wallet, network) : "-"],
-    ]);
-    const infoPanel = renderPanel(infoContent, { title: "Akita DAO", width: colWidths[0] });
-
-    const assetsContent = renderKV([
-      ["AKTA", state.akitaAssets?.akta?.toString() ?? ids.akta.toString()],
-      ["BONES", state.akitaAssets?.bones?.toString() ?? ids.bones.toString()],
-      ["Next Proposal", state.proposalId?.toString() ?? "-"],
-      ["Action Limit", state.proposalActionLimit?.toString() ?? "-"],
-      ["Min Rewards", state.minRewardsImpact?.toString() ?? "-"],
-    ]);
-    const assetsPanel = renderPanel(assetsContent, { title: "Assets", width: colWidths[1] });
-
-    if (hasSupply) {
-      const supplyW = colWidths[2];
-      const supplyContent = renderSupplyCharts(aktaSupply, bonesSupply, supplyW - 4);
-      const supplyPanel = renderPanel(supplyContent, { title: "Token Supply", width: supplyW });
-      gridRows.push([infoPanel, assetsPanel, supplyPanel]);
+      lines = renderSingleColumn(state, network, ids, width, aktaSupply, bonesSupply);
     } else {
-      gridRows.push([infoPanel, assetsPanel]);
+      const gridRows: string[][][] = [];
+
+      // Row 1: DAO info + Assets + Token Supply
+      const hasSupply = aktaSupply || bonesSupply;
+      const colCount = hasSupply ? 3 : 2;
+      const colWidths = splitWidth(width, colCount);
+
+      const infoContent = renderKV([
+        ["Network", network],
+        ["App ID", dao.appId.toString()],
+        ["Version", state.version ?? "-"],
+        ["State", state.state !== undefined ? colorState(daoStateLabel(state.state)) : "-"],
+        ["Wallet", state.wallet ? resolveAppName(state.wallet, network) : "-"],
+      ]);
+      const infoPanel = renderPanel(infoContent, { title: "Akita DAO", width: colWidths[0] });
+
+      const assetsContent = renderKV([
+        ["AKTA", state.akitaAssets?.akta?.toString() ?? ids.akta.toString()],
+        ["BONES", state.akitaAssets?.bones?.toString() ?? ids.bones.toString()],
+        ["Next Proposal", state.proposalId?.toString() ?? "-"],
+        ["Action Limit", state.proposalActionLimit?.toString() ?? "-"],
+        ["Min Rewards", state.minRewardsImpact?.toString() ?? "-"],
+      ]);
+      const assetsPanel = renderPanel(assetsContent, { title: "Assets", width: colWidths[1] });
+
+      if (hasSupply) {
+        const supplyW = colWidths[2];
+        const supplyContent = renderSupplyCharts(aktaSupply, bonesSupply, supplyW - 4);
+        const supplyPanel = renderPanel(supplyContent, { title: "Token Supply", width: supplyW });
+        gridRows.push([infoPanel, assetsPanel, supplyPanel]);
+      } else {
+        gridRows.push([infoPanel, assetsPanel]);
+      }
+
+      // Row 3: App IDs (40%) + Proposal Settings / Revenue Splits stacked (60%)
+      const appLines = renderAppTable(state, network);
+      const proposalLines = renderProposalSettings(state);
+
+      if (appLines.length > 0 || proposalLines.length > 0) {
+        // ~40/60 split
+        const appW = Math.floor((width - 2) * 0.4);
+        const rightPanelW = width - appW - 2;
+        const revLines = renderRevenueSplits(state, network, rightPanelW - 4);
+
+        const leftPanel = appLines.length > 0
+          ? renderPanel(appLines, { title: "App IDs", width: appW })
+          : renderPanel(["  No app ID data"], { title: "App IDs", width: appW });
+
+        // Stack Proposal Settings + Revenue Splits into one right column
+        const rightPanels: string[] = [];
+        if (proposalLines.length > 0) {
+          rightPanels.push(...renderPanel(proposalLines, { title: "Proposal Settings", width: rightPanelW }));
+        }
+        if (revLines.length > 0) {
+          if (rightPanels.length > 0) rightPanels.push("");
+          rightPanels.push(...renderPanel(revLines, { title: "Revenue Splits", width: rightPanelW }));
+        }
+        if (rightPanels.length === 0) {
+          rightPanels.push(...renderPanel(["  No proposal settings"], { title: "Proposal Settings", width: rightPanelW }));
+        }
+
+        gridRows.push([leftPanel, rightPanels]);
+      }
+
+      lines = ["", ...renderPanelGrid(gridRows, { rowGap: 1 })];
     }
 
-    // Row 3: App IDs (40%) + Proposal Settings / Revenue Splits stacked (60%)
-    const appLines = renderAppTable(state, network);
-    const proposalLines = renderProposalSettings(state);
-
-    if (appLines.length > 0 || proposalLines.length > 0) {
-      // ~40/60 split
-      const appW = Math.floor((width - 2) * 0.4);
-      const rightPanelW = width - appW - 2;
-      const revLines = renderRevenueSplits(state, network, rightPanelW - 4);
-
-      const leftPanel = appLines.length > 0
-        ? renderPanel(appLines, { title: "App IDs", width: appW })
-        : renderPanel(["  No app ID data"], { title: "App IDs", width: appW });
-
-      // Stack Proposal Settings + Revenue Splits into one right column
-      const rightPanels: string[] = [];
-      if (proposalLines.length > 0) {
-        rightPanels.push(...renderPanel(proposalLines, { title: "Proposal Settings", width: rightPanelW }));
-      }
-      if (revLines.length > 0) {
-        if (rightPanels.length > 0) rightPanels.push("");
-        rightPanels.push(...renderPanel(revLines, { title: "Revenue Splits", width: rightPanelW }));
-      }
-      if (rightPanels.length === 0) {
-        rightPanels.push(...renderPanel(["  No proposal settings"], { title: "Proposal Settings", width: rightPanelW }));
-      }
-
-      gridRows.push([leftPanel, rightPanels]);
-    }
-
-    return ["", ...renderPanelGrid(gridRows, { rowGap: 1 })];
+    return { lines, data };
   },
 };
 
@@ -174,6 +180,83 @@ function renderSingleColumn(
   }
 
   return lines;
+}
+
+// ── Structured data for JSON mode ───────────────────────────────
+
+function buildDaoData(
+  state: Partial<AkitaDaoGlobalState>,
+  network: AkitaNetwork,
+  ids: { akta: bigint; bones: bigint },
+  appId: bigint,
+  aktaSupply: SupplyInfo | null,
+  bonesSupply: SupplyInfo | null,
+) {
+  // App ID lists
+  const appSections: [string, Record<string, bigint> | undefined][] = [
+    ["core", state.akitaAppList as Record<string, bigint> | undefined],
+    ["social", state.akitaSocialAppList as Record<string, bigint> | undefined],
+    ["plugins", state.pluginAppList as Record<string, bigint> | undefined],
+    ["other", state.otherAppList as Record<string, bigint> | undefined],
+  ];
+  const apps: Record<string, Record<string, bigint>> = {};
+  for (const [category, list] of appSections) {
+    if (list) apps[category] = list;
+  }
+
+  // Proposal settings
+  const psEntries: [string, { fee: bigint; power: bigint; duration: bigint; participation: bigint; approval: bigint } | undefined][] = [
+    ["upgradeApp", state.upgradeAppProposalSettings],
+    ["addPlugin", state.addPluginProposalSettings],
+    ["removePlugin", state.removePluginProposalSettings],
+    ["removeExecutePlugin", state.removeExecutePluginProposalSettings],
+    ["addAllowances", state.addAllowancesProposalSettings],
+    ["removeAllowances", state.removeAllowancesProposalSettings],
+    ["newEscrow", state.newEscrowProposalSettings],
+    ["toggleEscrowLock", state.toggleEscrowLockProposalSettings],
+    ["updateFields", state.updateFieldsProposalSettings],
+  ];
+  const proposalSettings: Record<string, { fee: bigint; power: bigint; duration: bigint; participation: bigint; approval: bigint }> = {};
+  for (const [key, ps] of psEntries) {
+    if (ps) proposalSettings[key] = ps;
+  }
+
+  // Revenue splits
+  const revenueSplits = state.revenueSplits?.map(([[wallet, escrow], type, value]) => ({
+    wallet: wallet.toString(),
+    escrow: escrow || undefined,
+    type: type === 20 ? "percentage" : type === 30 ? "remainder" : `unknown(${type})`,
+    value,
+    percentage: type === 20
+      ? Number(value) / 1000
+      : type === 30
+        ? Number(100_000n - (state.revenueSplits ?? []).reduce((sum, [, t, v]) => t === 20 ? sum + v : sum, 0n)) / 1000
+        : undefined,
+  })) ?? [];
+
+  // Token supply
+  const tokenSupply: Record<string, { total: bigint; circulating: bigint; decimals: number }> = {};
+  if (aktaSupply) tokenSupply.akta = aktaSupply;
+  if (bonesSupply) tokenSupply.bones = bonesSupply;
+
+  return {
+    network,
+    appId,
+    version: state.version ?? null,
+    state: state.state !== undefined ? daoStateLabel(state.state) : null,
+    wallet: state.wallet ?? null,
+    assets: {
+      akta: state.akitaAssets?.akta ?? ids.akta,
+      bones: state.akitaAssets?.bones ?? ids.bones,
+      nextProposal: state.proposalId ?? null,
+      actionLimit: state.proposalActionLimit ?? null,
+      minRewardsImpact: state.minRewardsImpact ?? null,
+    },
+    tokenSupply,
+    apps,
+    proposalSettings,
+    revenueSplits,
+  };
 }
 
 // ── Helpers ────────────────────────────────────────────────────

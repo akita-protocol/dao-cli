@@ -3,7 +3,9 @@ import theme from "../../theme";
 import {
   truncateAddress,
   formatTimestamp,
+  formatCID,
   proposalStatusLabel,
+  proposalActionLabel,
   colorStatus,
 } from "../../formatting";
 import { renderPanel } from "../panels";
@@ -112,10 +114,13 @@ export const proposalsListView: View = {
     if (_cursor >= _proposalIds.length) _cursor = 0;
 
     if (_cachedEntries.length === 0) {
-      return [
-        "",
-        ...renderPanel(["  No proposals found."], { title: "Proposals", width }),
-      ];
+      return {
+        lines: [
+          "",
+          ...renderPanel(["  No proposals found."], { title: "Proposals", width }),
+        ],
+        data: { proposals: [], selected: null },
+      };
     }
 
     // Fetch selected proposal detail (cached)
@@ -138,9 +143,15 @@ export const proposalsListView: View = {
       }
     }
 
+    // Build structured data for JSON mode
+    const data = buildProposalsData(_cachedEntries, detailData, selectedId);
+
     // Narrow: single column (list, then detail below)
     if (width < 80) {
-      return renderSingleColumn(_cachedEntries, detailData, selectedId, network, width);
+      return {
+        lines: renderSingleColumn(_cachedEntries, detailData, selectedId, network, width),
+        data,
+      };
     }
 
     // Wide: two-panel layout (left scrolls, right fixed)
@@ -159,9 +170,47 @@ export const proposalsListView: View = {
     return {
       lines: ["", ...listPanel],
       fixedRight: ["", ...detailLines],
+      data,
     };
   },
 };
+
+// ── Structured data for JSON mode ──────────────────────────────
+
+function buildProposalsData(
+  entries: ListEntry[],
+  detailData: ProposalData | null,
+  selectedId: bigint | undefined,
+) {
+  const proposals = entries.map((e) => ({
+    id: e.id,
+    status: proposalStatusLabel(e.status),
+    creator: e.creator,
+    votes: e.votes,
+    actionCount: e.actionCount,
+    created: e.created,
+  }));
+
+  let selected = null;
+  if (detailData && selectedId !== undefined) {
+    selected = {
+      id: selectedId,
+      status: proposalStatusLabel(detailData.status),
+      creator: detailData.creator,
+      cid: formatCID(detailData.cid),
+      created: detailData.created,
+      votingTs: detailData.votingTs,
+      votes: detailData.votes,
+      feesPaid: detailData.feesPaid,
+      actions: detailData.actions.map((a) => ({
+        ...a,
+        type: proposalActionLabel(a.type),
+      })),
+    };
+  }
+
+  return { proposals, selected };
+}
 
 // ── Left panel: compact proposals list ─────────────────────────
 
@@ -171,11 +220,12 @@ function renderListPanel(entries: ListEntry[], width: number): string[] {
     return [
       marker + e.id.toString(),
       colorStatus(proposalStatusLabel(e.status)),
+      truncateAddress(e.creator),
       e.actionCount.toString(),
     ];
   });
 
-  const content = renderColumns(["  ID", "Status", "Act"], rows);
+  const content = renderColumns(["  ID", "Status", "Proposer", "Actions"], rows);
   return renderPanel(content, { title: `Proposals (${entries.length})`, width });
 }
 

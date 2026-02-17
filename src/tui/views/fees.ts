@@ -8,7 +8,7 @@ import {
 } from "../../formatting";
 import { renderPanel, splitWidth } from "../panels";
 import { padEndVisible, visibleLength } from "../../output";
-import type { View, ViewContext } from "../types";
+import type { LoadResult, View, ViewContext } from "../types";
 
 const PERCENTAGE_RE = /Percentage|Tax/i;
 const FEE_RE = /Fee$/i;
@@ -24,60 +24,65 @@ function feeLabel(key: string): string {
 }
 
 export const feesView: View = {
-  async load(ctx: ViewContext): Promise<string[]> {
+  async load(ctx: ViewContext): Promise<LoadResult> {
     const { dao, width } = ctx;
     const state = await dao.getGlobalState();
 
     const groups = collectFeeGroups(state);
+    const rawGroups = collectRawFeeGroups(state);
 
     if (groups.length === 0) {
-      return [
-        "",
-        ...renderPanel(["  No fee data available."], { title: "Fees", width }),
-      ];
+      return {
+        lines: [
+          "",
+          ...renderPanel(["  No fee data available."], { title: "Fees", width }),
+        ],
+        data: {},
+      };
     }
 
+    let lines: string[];
     if (width < 80) {
-      return renderSingleColumn(groups, width);
-    }
+      lines = renderSingleColumn(groups, width);
+    } else {
+      const cols = 2;
+      const colGap = 2;
+      const panelGap = 1;
+      const [leftW, rightW] = splitWidth(width, cols, colGap);
 
-    const cols = 2;
-    const colGap = 2;
-    const panelGap = 1;
-    const [leftW, rightW] = splitWidth(width, cols, colGap);
+      // Compute max key width per grid column
+      const colKeyWidths: number[] = Array(cols).fill(0);
+      for (let i = 0; i < groups.length; i++) {
+        const col = i % cols;
+        for (const [key] of groups[i].pairs) {
+          colKeyWidths[col] = Math.max(colKeyWidths[col], key.length);
+        }
+      }
 
-    // Compute max key width per grid column
-    const colKeyWidths: number[] = Array(cols).fill(0);
-    for (let i = 0; i < groups.length; i++) {
-      const col = i % cols;
-      for (const [key] of groups[i].pairs) {
-        colKeyWidths[col] = Math.max(colKeyWidths[col], key.length);
+      // Split groups into independent columns
+      const colWidths = [leftW, rightW];
+      const columns: string[][] = [[], []];
+      for (let i = 0; i < groups.length; i++) {
+        const col = i % cols;
+        if (columns[col].length > 0) {
+          for (let g = 0; g < panelGap; g++) columns[col].push("");
+        }
+        const content = renderFeeKV(groups[i].pairs, colKeyWidths[col]);
+        columns[col].push(...renderPanel(content, { title: groups[i].title, width: colWidths[col] }));
+      }
+
+      // Merge columns side-by-side
+      const maxHeight = Math.max(columns[0].length, columns[1].length);
+      const gapStr = " ".repeat(colGap);
+      lines = [""];
+      for (let i = 0; i < maxHeight; i++) {
+        const left = i < columns[0].length ? padEndVisible(columns[0][i], leftW) : " ".repeat(leftW);
+        const right = i < columns[1].length ? columns[1][i] : "";
+        lines.push(left + gapStr + right);
       }
     }
 
-    // Split groups into independent columns
-    const colWidths = [leftW, rightW];
-    const columns: string[][] = [[], []];
-    for (let i = 0; i < groups.length; i++) {
-      const col = i % cols;
-      if (columns[col].length > 0) {
-        for (let g = 0; g < panelGap; g++) columns[col].push("");
-      }
-      const content = renderFeeKV(groups[i].pairs, colKeyWidths[col]);
-      columns[col].push(...renderPanel(content, { title: groups[i].title, width: colWidths[col] }));
-    }
-
-    // Merge columns side-by-side
-    const maxHeight = Math.max(columns[0].length, columns[1].length);
-    const gapStr = " ".repeat(colGap);
-    const lines: string[] = [""];
-    for (let i = 0; i < maxHeight; i++) {
-      const left = i < columns[0].length ? padEndVisible(columns[0][i], leftW) : " ".repeat(leftW);
-      const right = i < columns[1].length ? columns[1][i] : "";
-      lines.push(left + gapStr + right);
-    }
-
-    return lines;
+    return { lines, data: rawGroups };
   },
 };
 
@@ -95,6 +100,23 @@ function renderSingleColumn(groups: KVGroup[], width: number): string[] {
 function renderFeeKV(pairs: [string, string][], keyWidth?: number): string[] {
   const w = keyWidth ?? Math.max(...pairs.map(([k]) => k.length));
   return pairs.map(([key, value]) => `  ${theme.label(key.padEnd(w))}  ${value}`);
+}
+
+function collectRawFeeGroups(state: Partial<AkitaDaoGlobalState>): Record<string, Record<string, bigint>> {
+  const feeGroups: [string, Record<string, bigint> | undefined][] = [
+    ["walletFees", state.walletFees as Record<string, bigint> | undefined],
+    ["socialFees", state.socialFees as Record<string, bigint> | undefined],
+    ["stakingFees", state.stakingFees as Record<string, bigint> | undefined],
+    ["subscriptionFees", state.subscriptionFees as Record<string, bigint> | undefined],
+    ["swapFees", state.swapFees as Record<string, bigint> | undefined],
+    ["nftFees", state.nftFees as Record<string, bigint> | undefined],
+  ];
+
+  const result: Record<string, Record<string, bigint>> = {};
+  for (const [name, fees] of feeGroups) {
+    if (fees) result[name] = fees;
+  }
+  return result;
 }
 
 function collectFeeGroups(state: Partial<AkitaDaoGlobalState>): KVGroup[] {
