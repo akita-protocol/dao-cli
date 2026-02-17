@@ -1,0 +1,33 @@
+{
+  "name": "@akta/dao-cli",
+  "version": "0.1.0",
+  "description": "Read-only CLI and TUI for querying Akita DAO state on Algorand",
+  "type": "module",
+  "bin": {
+    "akita-dao": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@akta/sdk": "0.0.1",
+    "@algorandfoundation/algokit-utils": "9.1.2",
+    "algosdk": "3.5.2",
+    "commander": "^13.1.0",
+    "chalk": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "sharp": "^0.34.5",
+    "typescript": "^5.7.0"
+  },
+  "files": [
+    "src/",
+    "images/*_styled.png",
+    "install.sh"
+  ],
+  "keywords": ["algorand", "dao", "akita", "akta", "cli", "tui"],
+  "author": "Kyle Breeding",
+  "license": "MIT"
+}
