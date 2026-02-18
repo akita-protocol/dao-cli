@@ -1,6 +1,6 @@
 {
   "name": "@akta/dao-cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Read-only CLI and TUI for querying Akita DAO state on Algorand",
   "type": "module",
   "bin": {
