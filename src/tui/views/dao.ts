@@ -16,12 +16,24 @@ import {
 } from "../../formatting";
 import { renderPanel, renderPanelGrid, splitWidth } from "../panels";
 import type { LoadResult, View, ViewContext } from "../types";
+import type { AkitaDaoSDK } from "@akta/sdk/dao";
+
+type PluginsMap = Awaited<ReturnType<AkitaDaoSDK["client"]["state"]["box"]["plugins"]["getMap"]>>;
 
 export const daoView: View = {
   async load(ctx: ViewContext): Promise<LoadResult> {
     const { dao, network, width } = ctx;
     const state = await dao.getGlobalState();
     const ids = getNetworkAppIds(network);
+
+    // Fetch per-plugin proposal settings from box storage
+    let pluginsMap: PluginsMap | null = null;
+    try {
+      pluginsMap = await dao.client.state.box.plugins.getMap();
+      if (pluginsMap.size === 0) pluginsMap = null;
+    } catch {
+      // Box may be empty or inaccessible
+    }
 
     // Fetch supply data for AKTA & BONES
     let aktaSupply: SupplyInfo | null = null;
@@ -54,11 +66,11 @@ export const daoView: View = {
     }
 
     // Build structured data for JSON mode
-    const data = buildDaoData(state, network, ids, dao.appId, aktaSupply, bonesSupply);
+    const data = buildDaoData(state, network, ids, dao.appId, aktaSupply, bonesSupply, pluginsMap);
 
     let lines: string[];
     if (width < 80) {
-      lines = renderSingleColumn(state, network, ids, width, aktaSupply, bonesSupply);
+      lines = renderSingleColumn(state, network, ids, width, aktaSupply, bonesSupply, pluginsMap);
     } else {
       const gridRows: string[][][] = [];
 
@@ -108,10 +120,15 @@ export const daoView: View = {
           ? renderPanel(appLines, { title: "App IDs", width: appW })
           : renderPanel(["  No app ID data"], { title: "App IDs", width: appW });
 
-        // Stack Proposal Settings + Revenue Splits into one right column
+        // Stack Proposal Settings + Plugin Proposal Settings + Revenue Splits into one right column
         const rightPanels: string[] = [];
         if (proposalLines.length > 0) {
           rightPanels.push(...renderPanel(proposalLines, { title: "Proposal Settings", width: rightPanelW }));
+        }
+        const pluginPsLines = renderPluginProposalSettings(pluginsMap, network);
+        if (pluginPsLines.length > 0) {
+          if (rightPanels.length > 0) rightPanels.push("");
+          rightPanels.push(...renderPanel(pluginPsLines, { title: "Plugin Proposal Settings", width: rightPanelW }));
         }
         if (revLines.length > 0) {
           if (rightPanels.length > 0) rightPanels.push("");
@@ -140,6 +157,7 @@ function renderSingleColumn(
   width: number,
   aktaSupply: SupplyInfo | null,
   bonesSupply: SupplyInfo | null,
+  pluginsMap: PluginsMap | null,
 ): string[] {
   const lines: string[] = [""];
 
@@ -173,6 +191,12 @@ function renderSingleColumn(
     lines.push(...renderPanel(proposalLines, { title: "Proposal Settings", width }));
   }
 
+  const pluginPsLines = renderPluginProposalSettings(pluginsMap, network);
+  if (pluginPsLines.length > 0) {
+    lines.push("");
+    lines.push(...renderPanel(pluginPsLines, { title: "Plugin Proposal Settings", width }));
+  }
+
   const revLines = renderRevenueSplits(state, network, width - 4);
   if (revLines.length > 0) {
     lines.push("");
@@ -191,6 +215,7 @@ function buildDaoData(
   appId: bigint,
   aktaSupply: SupplyInfo | null,
   bonesSupply: SupplyInfo | null,
+  pluginsMap: PluginsMap | null,
 ) {
   // App ID lists
   const appSections: [string, Record<string, bigint> | undefined][] = [
@@ -255,6 +280,16 @@ function buildDaoData(
     tokenSupply,
     apps,
     proposalSettings,
+    pluginProposalSettings: pluginsMap ? [...pluginsMap.entries()].map(([key, ps]) => ({
+      plugin: key.plugin,
+      pluginName: (getAppName(key.plugin, network) ?? key.plugin.toString()).replace(/ Plugin$/, ""),
+      account: key.escrow || "Main",
+      fee: ps.fee,
+      power: ps.power,
+      duration: ps.duration,
+      participation: ps.participation,
+      approval: ps.approval,
+    })) : [],
     revenueSplits,
   };
 }
@@ -310,6 +345,25 @@ function renderProposalSettings(state: Partial<AkitaDaoGlobalState>): string[] {
   });
 
   return renderColumns(["Cat", "Fee", "Pwr", "Dur", "Part", "Appr"], rows);
+}
+
+function renderPluginProposalSettings(pluginsMap: PluginsMap | null, network: AkitaNetwork): string[] {
+  if (!pluginsMap || pluginsMap.size === 0) return [];
+
+  const rows = [...pluginsMap.entries()].map(([key, ps]) => {
+    const name = (getAppName(key.plugin, network) ?? key.plugin.toString()).replace(/ Plugin$/, "");
+    return [
+      name,
+      key.escrow || "Main",
+      formatMicroAlgo(ps.fee),
+      formatBigInt(ps.power),
+      formatDuration(ps.duration),
+      inlineBar(ps.participation),
+      inlineBar(ps.approval),
+    ];
+  });
+
+  return renderColumns(["Plugin", "Account", "Fee", "Pwr", "Dur", "Part", "Appr"], rows);
 }
 
 const SPLIT_COLORS = theme.splitColors;
@@ -376,7 +430,7 @@ function renderRevenueSplits(state: Partial<AkitaDaoGlobalState>, network: Akita
 
 // ── Inline bar for basis-point percentages ─────────────────────
 
-const INLINE_BAR_WIDTH = 8;
+const INLINE_BAR_WIDTH = 10;
 
 function inlineBar(bp: bigint): string {
   const pct = Number(bp) / 1000;

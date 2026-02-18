@@ -9,13 +9,32 @@ import {
   formatBigInt,
   daoStateLabel,
   resolveAppName,
+  getAppName,
   colorState,
 } from "../formatting";
 
 export async function stateCommand(dao: AkitaDaoSDK, network: AkitaNetwork, json: boolean): Promise<void> {
   const state = await dao.getGlobalState();
 
-  if (json) return printJson(state);
+  if (json) {
+    let pluginProposalSettings: { plugin: bigint; pluginName: string; account: string; fee: bigint; power: bigint; duration: bigint; participation: bigint; approval: bigint }[] = [];
+    try {
+      const pluginsMap = await dao.client.state.box.plugins.getMap();
+      pluginProposalSettings = [...pluginsMap.entries()].map(([key, ps]) => ({
+        plugin: key.plugin,
+        pluginName: (getAppName(key.plugin, network) ?? key.plugin.toString()).replace(/ Plugin$/, ""),
+        account: key.escrow || "Main",
+        fee: ps.fee,
+        power: ps.power,
+        duration: ps.duration,
+        participation: ps.participation,
+        approval: ps.approval,
+      }));
+    } catch {
+      // Box may be empty or inaccessible
+    }
+    return printJson({ ...state, pluginProposalSettings });
+  }
 
   header("Core Settings");
   printKV([
@@ -38,6 +57,7 @@ export async function stateCommand(dao: AkitaDaoSDK, network: AkitaNetwork, json
   printAppLists(state, network);
   printFees(state);
   printProposalSettings(state);
+  await printPluginProposalSettings(dao, network);
   printRevenueSplits(state, network);
 }
 
@@ -150,6 +170,31 @@ function printProposalSettings(state: Partial<AkitaDaoGlobalState>): void {
     ];
   });
   printColumns(["Category", "Fee", "Power", "Duration", "Participation", "Approval"], rows);
+}
+
+async function printPluginProposalSettings(dao: AkitaDaoSDK, network: AkitaNetwork): Promise<void> {
+  let pluginsMap: Map<{ plugin: bigint; escrow: string }, { fee: bigint; power: bigint; duration: bigint; participation: bigint; approval: bigint }>;
+  try {
+    pluginsMap = await dao.client.state.box.plugins.getMap();
+  } catch {
+    return;
+  }
+  if (pluginsMap.size === 0) return;
+
+  header("Plugin Proposal Settings");
+  const rows = [...pluginsMap.entries()].map(([key, ps]) => {
+    const name = (getAppName(key.plugin, network) ?? key.plugin.toString()).replace(/ Plugin$/, "");
+    return [
+      name,
+      key.escrow || "Main",
+      formatMicroAlgo(ps.fee),
+      formatBigInt(ps.power),
+      formatDuration(ps.duration),
+      formatBasisPoints(ps.participation),
+      formatBasisPoints(ps.approval),
+    ];
+  });
+  printColumns(["Plugin", "Account", "Fee", "Power", "Duration", "Participation", "Approval"], rows);
 }
 
 function printRevenueSplits(state: Partial<AkitaDaoGlobalState>, network: AkitaNetwork): void {
