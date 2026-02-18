@@ -3,8 +3,8 @@ import { readdirSync } from "fs";
 import { join } from "path";
 
 const IMAGES_DIR = join(import.meta.dir, "../images");
-const BORDER_RADIUS = 16;
-const PADDING = 90;
+const BORDER_RADIUS = 28;
+const PADDING = 100;
 
 async function styleScreenshot(inputPath: string, outputPath: string) {
   const image = sharp(inputPath);

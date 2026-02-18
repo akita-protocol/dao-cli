@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "bun run src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "style-screenshots": "bun run scripts/style-screenshots.ts"
   },
   "dependencies": {
     "@akta/sdk": "0.0.1",
