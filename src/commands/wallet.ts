@@ -316,7 +316,7 @@ export async function walletBalance(
     const accountInfo = await dao.algorand.account.getInformation(address);
     balances = assets.map((assetId) => {
       if (assetId === 0n) {
-        return BigInt(accountInfo.amount);
+        return BigInt(accountInfo.balance.microAlgo);
       }
       const holding = accountInfo.assets?.find(
         (a: { assetId: bigint }) => a.assetId === assetId

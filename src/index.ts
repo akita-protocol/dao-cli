@@ -21,7 +21,7 @@ const program = new Command();
 program
   .name("akita-dao")
   .description("Read-only CLI for querying Akita DAO state on Algorand")
-  .version("0.1.0")
+  .version("0.1.3")
   .option("-n, --network <network>", "Network to connect to", "mainnet")
   .option("-j, --json", "Output as JSON", false);
 

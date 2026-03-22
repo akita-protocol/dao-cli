@@ -5,7 +5,7 @@
     "": {
       "name": "akita-dao-cli",
       "dependencies": {
-        "@akta/sdk": "0.0.1",
+        "@akta/sdk": "1.2.0",
         "@algorandfoundation/algokit-utils": "9.1.2",
         "algosdk": "3.5.2",
         "chalk": "^5.4.1",
@@ -19,7 +19,7 @@
     },
   },
   "packages": {
-    "@akta/sdk": ["@akta/sdk@0.0.1", "", { "dependencies": { "@noble/hashes": "^1.7.1" }, "peerDependencies": { "@algorandfoundation/algokit-utils": "9.1.2", "algosdk": "3.5.2" } }, "sha512-Ep7ycA7mJOQ/gz7LzZevViIu+tiQN9ZbJM7zlq3ZYkJNL1bCBuTfJySmas9+XpLa9OmEcBd8x8k5zbhPAsBlCg=="],
+    "@akta/sdk": ["@akta/sdk@1.2.0", "", { "dependencies": { "@noble/hashes": "^1.7.1" }, "peerDependencies": { "@algorandfoundation/algokit-utils": "9.1.2", "algosdk": "3.5.2" } }, "sha512-WR/+bJDxV2YBh148Wi/5QOXlDCL+9SJnj49xaBnpYv7a2d0PfCLRAYIfeyhxKxQPeKhLQNjZ+znAoXWuCvX59w=="],
 
     "@algorandfoundation/algokit-utils": ["@algorandfoundation/algokit-utils@9.1.2", "", { "dependencies": { "buffer": "^6.0.3" }, "peerDependencies": { "algosdk": "^3.0.0" } }, "sha512-gZTg9H5FAce+QcT79y8Eun8by+MtlgocYjIUvP2ahh2O0U0HCcTSjVux5lQZj5+EsSaL3sR0p+BmjXnPAMplbA=="],
 
