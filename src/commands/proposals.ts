@@ -1,4 +1,4 @@
-import type { AkitaDaoSDK } from "@akta/sdk";
+import type { AkitaDaoSDK } from "@akita-protocol/sdk";
 import { printJson, printColumns, header, printKV } from "../output";
 import {
   truncateAddress,

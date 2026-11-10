@@ -13,7 +13,7 @@ if ! command -v bun &> /dev/null; then
 fi
 
 # Install the CLI globally
-bun add -g @akta/dao-cli
+bun add -g @akita-protocol/dao-cli
 
 echo ""
 echo "Done! Run 'akita-dao info' to get started."

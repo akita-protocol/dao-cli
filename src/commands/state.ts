@@ -1,6 +1,6 @@
-import type { AkitaDaoSDK } from "@akta/sdk";
-import { type AkitaNetwork } from "@akta/sdk";
-import type { AkitaDaoGlobalState } from "@akta/sdk/dao";
+import type { AkitaDaoSDK } from "@akita-protocol/sdk";
+import { type AkitaNetwork } from "@akita-protocol/sdk";
+import type { AkitaDaoGlobalState } from "@akita-protocol/sdk/dao";
 import { printJson, printKV, header, printColumns, printMultiColumnKV, type KVGroup } from "../output";
 import {
   formatMicroAlgo,

@@ -1,0 +1,101 @@
+name: Publish
+
+# Publishes @akita-protocol/dao-cli to npm.
+#
+# Push a tag named after the version in package.json, e.g. `v0.2.0`:
+#   git tag v0.2.0 && git push origin v0.2.0
+# A prerelease goes out under its own dist-tag (0.3.0-beta.0 -> `beta`), so `latest` only moves
+# for a plain release. Run it by hand from the Actions tab to rehearse with a dry run, or to pick
+# the dist-tag yourself.
+#
+# Publishes through npm trusted publishing (OIDC), so there is no npm token to keep. The package
+# needs a GitHub Actions trusted publisher on npmjs.com: organization akita-protocol, repository
+# dao-cli, workflow publish.yml. npm only takes one for a package that already exists, so for the
+# very first version the NPM_TOKEN secret is used as a fallback (npm tries OIDC first); delete the
+# secret and the token once the trusted publisher is set.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dist-tag:
+        description: "npm dist-tag (empty: from the version, e.g. beta for 0.3.0-beta.0)"
+        required: false
+        default: ""
+      dry-run:
+        description: "Pack and check only, publish nothing"
+        type: boolean
+        default: true
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install -g npm@^11.5.1
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run typecheck
+
+      - name: Check version
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_TAG: ${{ inputs.dist-tag }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$REF_TYPE" = "tag" ] && [ "$REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $REF_NAME does not match the package version v$version."
+            exit 1
+          fi
+          if ! grep -q ".version(\"$version\")" src/index.ts; then
+            echo "::error::src/index.ts reports a different version than package.json ($version)."
+            exit 1
+          fi
+          tag="$INPUT_TAG"
+          if [ -z "$tag" ]; then
+            case "$version" in
+              *-*) tag=$(echo "${version#*-}" | cut -d. -f1) ;;
+              *) tag=latest ;;
+            esac
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dist-tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Publishing $version under the '$tag' dist-tag."
+
+      - name: Publish
+        env:
+          # Empty unless a first publish needs it (see the top of this file).
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          DIST_TAG: ${{ steps.version.outputs.dist-tag }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
+        run: |
+          name=$(node -p "require('./package.json').name")
+          if [ "$DRY_RUN" = "true" ]; then
+            npm publish --dry-run --tag "$DIST_TAG" --access public
+          elif npm view "$name@$VERSION" version >/dev/null 2>&1; then
+            echo "$name@$VERSION is already on npm; skipping."
+          else
+            npm publish --tag "$DIST_TAG" --access public --provenance
+          fi

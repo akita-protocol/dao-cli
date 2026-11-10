@@ -1,4 +1,4 @@
-import type { AkitaDaoGlobalState } from "@akta/sdk/dao";
+import type { AkitaDaoGlobalState } from "@akita-protocol/sdk/dao";
 import type { KVGroup } from "../../output";
 import theme from "../../theme";
 import {

@@ -1,6 +1,6 @@
-import type { AkitaNetwork } from "@akta/sdk";
-import { ProposalActionEnum } from "@akta/sdk/dao";
-import type { DecodedProposalAction } from "@akta/sdk/dao";
+import type { AkitaNetwork } from "@akita-protocol/sdk";
+import { ProposalActionEnum } from "@akita-protocol/sdk/dao";
+import type { DecodedProposalAction } from "@akita-protocol/sdk/dao";
 import { renderKV } from "../../output";
 import theme from "../../theme";
 import {
