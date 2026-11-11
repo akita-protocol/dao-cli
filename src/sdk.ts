@@ -1,6 +1,7 @@
 import { AlgorandClient } from "@algorandfoundation/algokit-utils/types/algorand-client";
-import { Address, makeEmptyTransactionSigner } from "algosdk";
-import { setCurrentNetwork, type AkitaNetwork, AkitaDaoSDK } from "@akta/sdk";
+import { Address } from "@algorandfoundation/algokit-utils";
+import { makeEmptyTransactionSigner } from "@algorandfoundation/algokit-utils/transact";
+import { setCurrentNetwork, type AkitaNetwork, AkitaDaoSDK } from "@akita-protocol/sdk";
 
 const ALGOD_URLS: Record<AkitaNetwork, string> = {
   mainnet: "https://mainnet-api.algonode.cloud",

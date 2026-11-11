@@ -1,4 +1,4 @@
-import type { AkitaDaoSDK, AkitaNetwork } from "@akta/sdk";
+import type { AkitaDaoSDK, AkitaNetwork } from "@akita-protocol/sdk";
 
 // ── Tab & View identifiers ──────────────────────────────────────
 

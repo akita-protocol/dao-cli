@@ -1,5 +1,5 @@
-import type { AkitaDaoSDK } from "@akta/sdk";
-import { getNetworkAppIds, type AkitaNetwork } from "@akta/sdk";
+import type { AkitaDaoSDK } from "@akita-protocol/sdk";
+import { getNetworkAppIds, type AkitaNetwork } from "@akita-protocol/sdk";
 import algosdk from "algosdk";
 import { printJson, printColumns, header, printKV, printPluginCard } from "../output";
 import {

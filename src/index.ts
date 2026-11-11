@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
-import type { AkitaNetwork } from "@akta/sdk";
+import type { AkitaNetwork } from "@akita-protocol/sdk";
 import { createDAO } from "./sdk";
 import { infoCommand } from "./commands/info";
 import { stateCommand } from "./commands/state";
@@ -21,7 +21,7 @@ const program = new Command();
 program
   .name("akita-dao")
   .description("Read-only CLI for querying Akita DAO state on Algorand")
-  .version("0.1.3")
+  .version("0.2.0")
   .option("-n, --network <network>", "Network to connect to", "mainnet")
   .option("-j, --json", "Output as JSON", false);
 

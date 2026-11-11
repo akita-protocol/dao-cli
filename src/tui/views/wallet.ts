@@ -1,5 +1,5 @@
-import { getNetworkAppIds } from "@akta/sdk";
-import type { AkitaNetwork } from "@akta/sdk";
+import { getNetworkAppIds } from "@akita-protocol/sdk";
+import type { AkitaNetwork } from "@akita-protocol/sdk";
 import algosdk from "algosdk";
 import { renderKV, renderColumns, padEndVisible } from "../../output";
 import theme from "../../theme";

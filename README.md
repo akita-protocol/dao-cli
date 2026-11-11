@@ -17,8 +17,8 @@ curl -fsSL https://raw.githubusercontent.com/akita-protocol/dao-cli/main/install
 **Or with npm / bun:**
 
 ```bash
-npx @akta/dao-cli
-bun add -g @akta/dao-cli
+npx @akita-protocol/dao-cli
+bun add -g @akita-protocol/dao-cli
 ```
 
 ## Interactive TUI
@@ -130,7 +130,7 @@ bun install
 bun run src/index.ts
 ```
 
-Uses [`@akta/sdk`](https://www.npmjs.com/package/@akta/sdk) from npm — installed automatically with `bun install`.
+Uses [`@akita-protocol/sdk`](https://www.npmjs.com/package/@akita-protocol/sdk) from npm — installed automatically with `bun install`.
 
 ## License
 

@@ -1,5 +1,5 @@
-import type { AkitaNetwork, NetworkAppIds } from "@akta/sdk";
-import { getNetworkAppIds } from "@akta/sdk";
+import type { AkitaNetwork, NetworkAppIds } from "@akita-protocol/sdk";
+import { getNetworkAppIds } from "@akita-protocol/sdk";
 import { ABIMethod, ABIType } from "algosdk";
 import theme from "./theme";
 
@@ -182,7 +182,9 @@ function getAppNameMap(network: AkitaNetwork): Map<bigint, string> {
   // Human-readable names for known app IDs
   const labels: Record<keyof NetworkAppIds, string> = {
     dao: "DAO",
+    daoProposalValidator: "DAO Proposal Validator",
     wallet: "Wallet",
+    walletMbr: "Wallet MBR",
     escrowFactory: "Escrow Factory",
     walletFactory: "Wallet Factory",
     subscriptions: "Subscriptions",
@@ -201,8 +203,10 @@ function getAppNameMap(network: AkitaNetwork): Map<bigint, string> {
     revenueManagerPlugin: "Revenue Manager Plugin",
     updatePlugin: "Update Plugin",
     optinPlugin: "Opt-In Plugin",
-    asaMintPlugin: "ASA Mint Plugin",
+    selfOptinPlugin: "Self Opt-In Plugin",
+    asaManagerPlugin: "ASA Manager Plugin",
     payPlugin: "Pay Plugin",
+    haystackRouterPlugin: "Haystack Router Plugin",
     hyperSwapPlugin: "Hyper Swap Plugin",
     subscriptionsPlugin: "Subscriptions Plugin",
     auctionPlugin: "Auction Plugin",

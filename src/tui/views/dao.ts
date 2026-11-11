@@ -1,6 +1,6 @@
-import { getNetworkAppIds } from "@akta/sdk";
-import type { AkitaNetwork } from "@akta/sdk";
-import type { AkitaDaoGlobalState } from "@akta/sdk/dao";
+import { getNetworkAppIds } from "@akita-protocol/sdk";
+import type { AkitaNetwork } from "@akita-protocol/sdk";
+import type { AkitaDaoGlobalState } from "@akita-protocol/sdk/dao";
 import { renderKV, renderColumns, visibleLength } from "../../output";
 import theme from "../../theme";
 import {
@@ -16,7 +16,7 @@ import {
 } from "../../formatting";
 import { renderPanel, renderPanelGrid, splitWidth } from "../panels";
 import type { LoadResult, View, ViewContext } from "../types";
-import type { AkitaDaoSDK } from "@akta/sdk/dao";
+import type { AkitaDaoSDK } from "@akita-protocol/sdk/dao";
 
 type PluginsMap = Awaited<ReturnType<AkitaDaoSDK["client"]["state"]["box"]["plugins"]["getMap"]>>;
 

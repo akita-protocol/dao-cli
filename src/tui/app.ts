@@ -1,4 +1,4 @@
-import type { AkitaNetwork } from "@akta/sdk";
+import type { AkitaNetwork } from "@akita-protocol/sdk";
 import { createDAO } from "../sdk";
 import { jsonReplacer } from "../output";
 import { enterRawMode, exitRawMode, writeFrame, getTermSize, onResize } from "./terminal";
